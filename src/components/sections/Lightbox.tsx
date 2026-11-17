@@ -3,22 +3,25 @@
 import Image from "next/image";
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import type { Photo } from "@/lib/media";
 
 type Props = {
-  images: string[];
+  photos: Photo[];
   index: number;
-  alt: (i: number) => string;
+  label: (i: number) => string;
   labels: { close: string; prev: string; next: string; dialog: string };
   onClose: () => void;
   onIndex: Dispatch<SetStateAction<number | null>>;
 };
 
-export function Lightbox({ images, index, alt, labels, onClose, onIndex }: Props) {
+export function Lightbox({ photos, index, label, labels, onClose, onIndex }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
-  const total = images.length;
+  const total = photos.length;
+  const photo = photos[index];
+  const neighbours = total > 1 ? [photos[(index + 1) % total], photos[(index - 1 + total) % total]] : [];
 
   const go = (dir: 1 | -1) => onIndex((i) => ((i ?? 0) + dir + total) % total);
   const goRef = useRef(go);
@@ -87,9 +90,12 @@ export function Lightbox({ images, index, alt, labels, onClose, onIndex }: Props
       className="fixed inset-0 z-[100] flex h-[100dvh] w-full flex-col overflow-hidden bg-[#24211c] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
     >
       <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-5">
-        <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-bold text-white tabular-nums" aria-live="polite">
-          {index + 1} / {total}
-        </span>
+        <p className="flex min-w-0 items-center gap-2.5 text-white" aria-live="polite">
+          <span className="shrink-0 rounded-full bg-sun px-3 py-1.5 text-sm font-extrabold text-ink tabular-nums">
+            {index + 1} / {total}
+          </span>
+          <span className="truncate text-[15px] font-bold">{label(index)}</span>
+        </p>
         <button ref={closeRef} type="button" onClick={onClose} aria-label={labels.close} className={btn}>
           <X className="size-6" aria-hidden />
         </button>
@@ -109,15 +115,31 @@ export function Lightbox({ images, index, alt, labels, onClose, onIndex }: Props
       >
         <div className="relative size-full">
           <Image
-            key={images[index]}
-            src={images[index]}
-            alt={alt(index)}
+            key={photo.src}
+            src={photo.src}
+            alt={label(index)}
             fill
-            sizes="100vw"
+            quality={80}
+            sizes="(min-width: 640px) calc(100vw - 160px), 100vw"
             className="object-contain"
             draggable={false}
-            priority
+            loading="eager"
+            fetchPriority="high"
           />
+          {/* Соседние фото загружаются заранее — перелистывание без задержки */}
+          {neighbours.map((p) => (
+            <Image
+              key={`pre-${p.src}`}
+              src={p.src}
+              alt=""
+              aria-hidden
+              fill
+              quality={80}
+              sizes="(min-width: 640px) calc(100vw - 160px), 100vw"
+              className="pointer-events-none invisible object-contain"
+              loading="eager"
+            />
+          ))}
         </div>
 
         {total > 1 && (
@@ -131,6 +153,26 @@ export function Lightbox({ images, index, alt, labels, onClose, onIndex }: Props
           </>
         )}
       </div>
+
+      {total > 1 && (
+        <ul className="mx-auto hidden max-w-full gap-2 overflow-x-auto px-5 py-4 [scrollbar-width:none] sm:flex">
+          {photos.map((p, i) => (
+            <li key={p.src} className="shrink-0">
+              <button
+                type="button"
+                onClick={() => onIndex(i)}
+                aria-label={label(i)}
+                aria-current={i === index ? "true" : undefined}
+                className={`relative block h-14 w-20 overflow-hidden rounded-xl transition ${
+                  i === index ? "opacity-100 ring-3 ring-sun" : "opacity-55 hover:opacity-90"
+                }`}
+              >
+                <Image src={p.src} alt="" fill quality={70} sizes="96px" className="object-cover" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {total > 1 && (
         <div className="flex items-center justify-center gap-6 px-3 py-4 sm:hidden">

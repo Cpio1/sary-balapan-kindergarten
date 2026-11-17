@@ -7,8 +7,9 @@ import { whatsappLink } from "@/lib/site";
 import { Chick, ChickHatch, Cloud, Flower, Sparkle, Star, Sun, Wave } from "@/components/decor/Decor";
 import { HeroScene } from "@/components/decor/Illustrations";
 import { WhatsAppIcon } from "@/components/ui/BrandIcons";
+import type { Photo } from "@/lib/media";
 
-export function Hero({ heroImage }: { heroImage: string | null }) {
+export function Hero({ photo }: { photo: Photo | null }) {
   const { t } = useLang();
   const h = t.hero;
 
@@ -56,17 +57,24 @@ export function Hero({ heroImage }: { heroImage: string | null }) {
         </div>
 
         {/* Визуал */}
-        <div className="reveal relative order-last mx-auto w-full max-w-[400px] sm:max-w-[500px] lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:max-w-none" style={{ ["--delay" as string]: "120ms" }}>
+        <div className={`reveal relative order-last mx-auto w-full lg:order-none ${photo ? "max-w-[340px] sm:max-w-[400px] lg:max-w-[460px]" : "max-w-[400px] sm:max-w-[500px] lg:max-w-none"} lg:col-start-2 lg:row-span-2 lg:row-start-1`} style={{ ["--delay" as string]: "120ms" }}>
           <Sun className="absolute -top-4 -left-1 z-10 w-12 animate-spin-slow sm:w-16 lg:-top-6 lg:-left-6 lg:w-20" />
-          <div className="relative aspect-[5/4] overflow-hidden border-[6px] border-white bg-teal-soft shadow-pop blob sm:border-8 lg:aspect-[1/1.02]">
-            {heroImage ? (
+          <div
+            className={`relative overflow-hidden border-[6px] border-white bg-teal-soft shadow-pop sm:border-8 ${
+              photo
+                ? "aspect-[4/5] rounded-[36px] sm:rounded-[44px] lg:aspect-[5/6] lg:rounded-[52px]"
+                : "aspect-[5/4] blob lg:aspect-[1/1.02]"
+            }`}
+          >
+            {photo ? (
               <Image
-                src={heroImage}
+                src={photo.src}
                 alt={h.imageAlt}
                 fill
-                priority
-                sizes="(min-width: 1024px) 560px, (min-width: 640px) 500px, 92vw"
-                className="object-cover"
+                preload
+                quality={80}
+                sizes="(min-width: 1024px) 460px, (min-width: 640px) 400px, 340px"
+                className="object-cover object-[50%_47%]"
               />
             ) : (
               <HeroScene className="absolute inset-0 size-full" />
@@ -78,7 +86,7 @@ export function Hero({ heroImage }: { heroImage: string | null }) {
             <span className="mr-1.5 inline-block size-2.5 rounded-full bg-orange align-middle" />
             {h.badgeMeals}
           </div>
-          <div className="absolute bottom-[10%] -left-1 -rotate-2 rounded-2xl bg-white px-3 py-2 text-[13px] font-extrabold text-ink shadow-soft sm:text-sm lg:-left-5">
+          <div className={`absolute ${photo ? "bottom-[4%]" : "bottom-[10%]"} -left-1 -rotate-2 rounded-2xl bg-white px-3 py-2 text-[13px] font-extrabold text-ink shadow-soft sm:text-sm lg:-left-5`}>
             <span className="mr-1.5 inline-block size-2.5 rounded-full bg-teal align-middle" />
             {h.badgeClubs}
           </div>

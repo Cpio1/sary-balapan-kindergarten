@@ -1,4 +1,4 @@
-import media from "@/generated/media.json";
+import { galleryPhotos, heroPhoto } from "@/lib/media";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
@@ -29,12 +29,12 @@ export default function Home() {
     <>
       <Header />
       <main>
-        <Hero heroImage={media.hero} />
+        <Hero photo={heroPhoto} />
         <About />
         <Program />
         <Clubs />
         <Nutrition />
-        <Gallery images={media.gallery} />
+        <Gallery photos={galleryPhotos} />
         <Documents />
         <Contacts />
       </main>
