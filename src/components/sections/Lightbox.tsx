@@ -102,7 +102,7 @@ export function Lightbox({ photos, index, label, labels, onClose, onIndex }: Pro
       </div>
 
       <div
-        className="relative min-h-0 flex-1 touch-none px-3 select-none sm:px-20"
+        className="relative flex min-h-0 flex-1 touch-none items-center justify-center px-[2.5vw] select-none [--lb-maxw:95vw] sm:[--lb-maxw:calc(100vw-136px)]"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (start.current = null)}
@@ -113,14 +113,26 @@ export function Lightbox({ photos, index, label, labels, onClose, onIndex }: Pro
           if (el.tagName !== "IMG" && !el.closest("button")) onClose();
         }}
       >
-        <div className="relative size-full">
+        {/*
+          Размер блока считается по пропорциям фото: не шире 95vw и не выше
+          85dvh (и не выше места, оставшегося после панелей управления).
+        */}
+        <div
+          className="relative overflow-hidden rounded-2xl bg-black/20 shadow-[0_20px_60px_-20px_rgb(0_0_0/0.6)]"
+          style={{
+            aspectRatio: `${photo.width} / ${photo.height}`,
+            width: `min(var(--lb-maxw), calc(min(85dvh, 100dvh - 168px) * ${(photo.width / photo.height).toFixed(4)}))`,
+            maxWidth: "95vw",
+            maxHeight: "85dvh",
+          }}
+        >
           <Image
             key={photo.src}
             src={photo.src}
             alt={label(index)}
             fill
             quality={80}
-            sizes="(min-width: 640px) calc(100vw - 160px), 100vw"
+            sizes="95vw"
             className="object-contain"
             draggable={false}
             loading="eager"
@@ -135,7 +147,7 @@ export function Lightbox({ photos, index, label, labels, onClose, onIndex }: Pro
               aria-hidden
               fill
               quality={80}
-              sizes="(min-width: 640px) calc(100vw - 160px), 100vw"
+              sizes="95vw"
               className="pointer-events-none invisible object-contain"
               loading="eager"
             />
@@ -155,7 +167,7 @@ export function Lightbox({ photos, index, label, labels, onClose, onIndex }: Pro
       </div>
 
       {total > 1 && (
-        <ul className="mx-auto hidden max-w-full gap-2 overflow-x-auto px-5 py-4 [scrollbar-width:none] sm:flex">
+        <ul className="mx-auto hidden max-w-[95vw] gap-2 overflow-x-auto px-2 py-4 [scrollbar-width:none] sm:flex">
           {photos.map((p, i) => (
             <li key={p.src} className="shrink-0">
               <button

@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
-import { Camera, ChevronLeft, ChevronRight, Hand, ImageIcon, ZoomIn } from "lucide-react";
+import { useState } from "react";
+import { Camera, ChevronDown, ChevronUp, ImageIcon, ZoomIn } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { site } from "@/lib/site";
 import { photoCaption, type Photo } from "@/lib/media";
@@ -11,31 +11,50 @@ import { InstagramIcon } from "@/components/ui/BrandIcons";
 import { Star, Squiggle, Chick, Flower, Sun, Cloud, Sparkle } from "@/components/decor/Decor";
 import { Lightbox } from "./Lightbox";
 
-const ratio = (p: Photo) => p.width / p.height;
+/**
+ * Сколько фото показывать сразу на каждой ширине (2 ряда сетки):
+ * телефон — 2 колонки × 2 ряда, планшет — 3 × 2, компьютер — 4 × 2.
+ * Остальные открываются кнопкой «Показать ещё» такими же порциями.
+ */
+const BATCH = { base: 4, md: 6, lg: 8 } as const;
+type Bp = keyof typeof BATCH;
+const bps: Bp[] = ["base", "md", "lg"];
 
 /**
- * Делит фото на ряды одинаковой высоты: ширина каждого фото пропорциональна
- * его соотношению сторон, поэтому снимки показываются целиком, без обрезки.
+ * Классы видимости для каждой ширины экрана. Строки записаны целиком,
+ * чтобы Tailwind нашёл их при сборке.
  */
-function justifiedRows(photos: Photo[], perRow: number) {
-  const rows: { items: { photo: Photo; index: number }[]; sum: number }[] = [];
-  photos.forEach((photo, index) => {
-    let row = rows[rows.length - 1];
-    if (!row || row.items.length >= perRow) {
-      row = { items: [], sum: 0 };
-      rows.push(row);
-    }
-    row.items.push({ photo, index });
-    row.sum += ratio(photo);
-  });
-  return rows;
+const displayClasses = {
+  block: { base: ["hidden", "block"], md: ["md:hidden", "md:block"], lg: ["lg:hidden", "lg:block"] },
+  inline: { base: ["hidden", "inline"], md: ["md:hidden", "md:inline"], lg: ["lg:hidden", "lg:inline"] },
+  "inline-flex": {
+    base: ["hidden", "inline-flex"],
+    md: ["md:hidden", "md:inline-flex"],
+    lg: ["lg:hidden", "lg:inline-flex"],
+  },
+} as const;
+
+function visibility(show: Record<Bp, boolean>, display: keyof typeof displayClasses = "block") {
+  const c = displayClasses[display];
+  return bps.map((bp) => c[bp][show[bp] ? 1 : 0]).join(" ");
 }
 
 export function Gallery({ photos }: { photos: Photo[] }) {
   const { t, lang } = useLang();
   const g = t.gallery;
   const [current, setCurrent] = useState<number | null>(null);
+  const [pages, setPages] = useState(1);
+  const total = photos.length;
   const label = (i: number) => photoCaption(photos[i], lang) ?? `${g.photoAlt} ${i + 1}`;
+
+  const limit = (bp: Bp) => Math.min(total, BATCH[bp] * pages);
+  const hasMore = (bp: Bp) => limit(bp) < total;
+  const canCollapse = (bp: Bp) => pages > 1 && !hasMore(bp);
+
+  const collapse = () => {
+    setPages(1);
+    document.getElementById("gallery-title")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <section id="gallery" data-anchor aria-labelledby="gallery-title" className="relative overflow-hidden bg-white py-14 sm:py-20 lg:py-24">
@@ -53,18 +72,72 @@ export function Gallery({ photos }: { photos: Photo[] }) {
           icon={<Camera className="size-4" aria-hidden />}
         />
 
-        {photos.length > 0 ? (
-          <>
-            <MobileCarousel photos={photos} label={label} onOpen={setCurrent} />
-            <DesktopRows photos={photos} label={label} onOpen={setCurrent} perRow={2} className="mt-12 hidden md:flex lg:hidden" />
-            <DesktopRows photos={photos} label={label} onOpen={setCurrent} perRow={3} className="mt-14 hidden lg:flex" />
-          </>
+        {total > 0 ? (
+          <div className="mx-auto mt-8 max-w-6xl sm:mt-10 lg:mt-12">
+            {/* flex-wrap вместо grid: неполный последний ряд выравнивается по центру */}
+            <ul className="flex flex-wrap justify-center gap-2.5 sm:gap-3 md:gap-4 lg:gap-5">
+              {photos.map((photo, i) => (
+                <li
+                  key={photo.src}
+                  className={`min-w-0 w-[calc((100%-0.625rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-3.75rem)/4)] ${visibility({ base: i < limit("base"), md: i < limit("md"), lg: i < limit("lg") })}`}
+                >
+                  <PhotoCard photo={photo} title={label(i)} openLabel={g.open} onOpen={() => setCurrent(i)} />
+                </li>
+              ))}
+            </ul>
+
+            {/* Счётчик и кнопки «Показать ещё / Свернуть» — отдельно для каждой ширины */}
+            <div className="mt-5 flex flex-col items-center gap-3 sm:mt-7 md:flex-row md:justify-between">
+              <p className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-center text-[13px] font-semibold text-ink-soft sm:text-sm">
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <ZoomIn className="size-4 text-teal-deep" aria-hidden />
+                  {g.tapHint}
+                </span>
+                {bps.map((bp) => (
+                  <span key={bp} className={`whitespace-nowrap tabular-nums ${visibility({ base: bp === "base", md: bp === "md", lg: bp === "lg" }, "inline")}`}>
+                    · {g.shown} {limit(bp)}/{total}
+                  </span>
+                ))}
+              </p>
+
+              {bps.map((bp) => {
+                const only = { base: bp === "base", md: bp === "md", lg: bp === "lg" };
+                if (hasMore(bp)) {
+                  return (
+                    <button
+                      key={bp}
+                      type="button"
+                      onClick={() => setPages((p) => p + 1)}
+                      className={`${visibility(only, "inline-flex")} min-h-12 w-full items-center justify-center gap-2 rounded-full bg-sun px-6 text-[15.5px] font-extrabold text-ink shadow-[inset_0_-3px_0_rgb(242_183_5)] transition hover:brightness-105 min-[420px]:w-auto`}
+                    >
+                      {g.showMore} ({total - limit(bp)})
+                      <ChevronDown className="size-4" aria-hidden />
+                    </button>
+                  );
+                }
+                if (canCollapse(bp)) {
+                  return (
+                    <button
+                      key={bp}
+                      type="button"
+                      onClick={collapse}
+                      className={`${visibility(only, "inline-flex")} min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-[15.5px] font-bold text-ink ring-1 ring-line transition hover:bg-sun-soft min-[420px]:w-auto`}
+                    >
+                      {g.showLess}
+                      <ChevronUp className="size-4" aria-hidden />
+                    </button>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          </div>
         ) : (
           <EmptyGallery />
         )}
       </div>
 
-      {current !== null && photos.length > 0 && (
+      {current !== null && total > 0 && (
         <Lightbox
           photos={photos}
           index={current}
@@ -78,170 +151,36 @@ export function Gallery({ photos }: { photos: Photo[] }) {
   );
 }
 
-type ViewProps = {
-  photos: Photo[];
-  label: (i: number) => string;
-  onOpen: (i: number) => void;
-};
-
-/* ---------- Компьютер и планшет: ряды одинаковой высоты ---------- */
-function DesktopRows({ photos, label, onOpen, perRow, className }: ViewProps & { perRow: number; className: string }) {
-  const { t } = useLang();
-  const rows = justifiedRows(photos, perRow);
-  // Неполный последний ряд не растягиваем до огромного размера
-  const fullSum = Math.max(...rows.filter((r) => r.items.length === perRow).map((r) => r.sum), perRow * 1.33);
-
+/**
+ * Компактная карточка одинакового размера (4:3). Фото вписывается целиком
+ * (object-contain) — без обрезки; свободные поля заполняет размытая копия снимка.
+ */
+function PhotoCard({ photo, title, openLabel, onOpen }: { photo: Photo; title: string; openLabel: string; onOpen: () => void }) {
   return (
-    <div className={`flex-col gap-3 lg:gap-4 ${className}`}>
-      {rows.map((row, r) => (
-        <ul
-          key={r}
-          className="flex w-full gap-3 lg:gap-4"
-          style={row.items.length < perRow ? { maxWidth: `${Math.min(100, (row.sum / fullSum) * 100)}%` } : undefined}
-        >
-          {row.items.map(({ photo, index }) => {
-            const ar = ratio(photo);
-            return (
-              <li
-                key={photo.src}
-                className="reveal min-w-0"
-                style={{ flex: `${ar} 1 0%`, ["--delay" as string]: `${(index % perRow) * 80}ms` }}
-              >
-                <button
-                  type="button"
-                  onClick={() => onOpen(index)}
-                  aria-label={`${t.gallery.open}: ${label(index)}`}
-                  className="group relative block w-full overflow-hidden rounded-[24px] bg-cream-deep ring-1 ring-line"
-                  style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
-                >
-                  <Image
-                    src={photo.src}
-                    alt={label(index)}
-                    fill
-                    quality={70}
-                    sizes={perRow === 3 ? "(min-width: 1280px) 480px, 40vw" : "50vw"}
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/45 to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
-                  <span className="absolute bottom-3 left-3 max-w-[calc(100%-4.5rem)] truncate rounded-full bg-white/95 px-3 py-1.5 text-[13.5px] font-bold text-ink shadow-soft">
-                    {label(index)}
-                  </span>
-                  <span className="absolute right-3 bottom-3 grid size-9 place-items-center rounded-full bg-sun text-ink shadow-soft transition-transform group-hover:scale-110">
-                    <ZoomIn className="size-4" aria-hidden />
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ))}
-    </div>
-  );
-}
-
-/* ---------- Телефон: карусель со свайпом ---------- */
-function MobileCarousel({ photos, label, onOpen }: ViewProps) {
-  const { t } = useLang();
-  const g = t.gallery;
-  const track = useRef<HTMLUListElement>(null);
-  const [active, setActive] = useState(0);
-
-  const onScroll = () => {
-    const el = track.current;
-    if (!el) return;
-    const slide = el.firstElementChild as HTMLElement | null;
-    if (!slide) return;
-    const step = slide.offsetWidth + 12;
-    setActive(Math.max(0, Math.min(photos.length - 1, Math.round(el.scrollLeft / step))));
-  };
-
-  const goTo = (i: number) => {
-    const el = track.current;
-    const slide = el?.children[i] as HTMLElement | undefined;
-    if (el && slide) el.scrollTo({ left: slide.offsetLeft - el.offsetLeft - 16, behavior: "smooth" });
-  };
-
-  return (
-    <div className="reveal mt-8 md:hidden">
-      <ul
-        ref={track}
-        onScroll={onScroll}
-        className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
-        aria-label={g.title}
-      >
-        {photos.map((photo, i) => (
-          <li key={photo.src} className="w-[86%] shrink-0 snap-start min-[480px]:w-[72%] sm:w-[56%]">
-            <button
-              type="button"
-              onClick={() => onOpen(i)}
-              aria-label={`${g.open}: ${label(i)}`}
-              className="block w-full overflow-hidden rounded-[24px] bg-white text-left shadow-card ring-1 ring-line"
-            >
-              <span className="relative block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
-                {/* размытый фон заполняет поля, само фото показывается целиком */}
-                <Image src={photo.src} alt="" aria-hidden fill quality={70} sizes="40px" className="scale-110 object-cover opacity-60 blur-xl" />
-                <Image
-                  src={photo.src}
-                  alt={label(i)}
-                  fill
-                  quality={70}
-                  sizes="(min-width: 640px) 56vw, (min-width: 480px) 72vw, 86vw"
-                  className="object-contain"
-                />
-                <span className="absolute top-2.5 right-2.5 grid size-8 place-items-center rounded-full bg-white/90 text-ink shadow-soft">
-                  <ZoomIn className="size-4" aria-hidden />
-                </span>
-              </span>
-              <span className="flex items-center justify-between gap-2 px-4 py-3">
-                <span className="truncate text-[14.5px] font-bold text-ink">{label(i)}</span>
-                <span className="shrink-0 text-[13px] font-bold text-ink-soft tabular-nums">
-                  {i + 1}/{photos.length}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => goTo(Math.max(0, active - 1))}
-          disabled={active === 0}
-          aria-label={g.prev}
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-white text-ink ring-1 ring-line transition disabled:opacity-40"
-        >
-          <ChevronLeft className="size-5" aria-hidden />
-        </button>
-        <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5">
-          {photos.map((p, i) => (
-            <button
-              key={p.src}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={`${g.goTo} ${i + 1}`}
-              aria-current={i === active ? "true" : undefined}
-              className="grid h-6 place-items-center px-0.5"
-            >
-              <span className={`block h-2 rounded-full transition-all ${i === active ? "w-6 bg-teal" : "w-2 bg-ink/20"}`} />
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => goTo(Math.min(photos.length - 1, active + 1))}
-          disabled={active === photos.length - 1}
-          aria-label={g.next}
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-sun text-ink shadow-[inset_0_-3px_0_rgb(242_183_5)] transition disabled:opacity-40"
-        >
-          <ChevronRight className="size-5" aria-hidden />
-        </button>
-      </div>
-      <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-ink-soft">
-        <Hand className="size-3.5" aria-hidden />
-        {g.swipeHint}
-      </p>
-    </div>
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${openLabel}: ${title}`}
+      className="group block w-full overflow-hidden rounded-2xl bg-white text-left shadow-card ring-1 ring-line transition-transform duration-300 hover:-translate-y-1 sm:rounded-[20px]"
+    >
+      <span className="relative block aspect-[4/3] w-full overflow-hidden bg-cream-deep">
+        <Image src={photo.src} alt="" aria-hidden fill quality={70} sizes="96px" className="scale-110 object-cover opacity-70 blur-lg" />
+        <Image
+          src={photo.src}
+          alt={title}
+          fill
+          quality={70}
+          sizes="(min-width: 1280px) 280px, (min-width: 1024px) 23vw, (min-width: 768px) 31vw, 47vw"
+          className="object-contain transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+        <span className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-white/90 text-ink shadow-soft transition group-hover:bg-sun sm:size-8">
+          <ZoomIn className="size-3.5 sm:size-4" aria-hidden />
+        </span>
+      </span>
+      <span className="block px-2.5 py-2 text-[12.5px] leading-tight font-bold text-ink sm:px-3.5 sm:py-2.5 sm:text-[14px]">
+        <span className="line-clamp-2 min-h-[2.5em] md:line-clamp-1 md:min-h-0">{title}</span>
+      </span>
+    </button>
   );
 }
 
