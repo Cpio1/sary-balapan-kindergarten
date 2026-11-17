@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Только светлая тема: вариант `dark:` никогда не срабатывает */
+@custom-variant dark (&:where(.never-dark, .never-dark *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  --font-sans: var(--font-nunito), "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-rubik), var(--font-nunito), system-ui, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --color-ink: #2d3036;
+  --color-ink-soft: #5b5f68;
+  --color-line: #f0e4c8;
+
+  --color-cream: #fff9ee;
+  --color-cream-deep: #fbefd6;
+
+  --color-sun: #ffd54a;
+  --color-sun-soft: #fff3c4;
+  --color-sun-deep: #f2b705;
+
+  --color-teal: #26b3a6;
+  --color-teal-soft: #dff5f2;
+  --color-teal-deep: #0f7f75;
+
+  --color-peach: #ffb48f;
+  --color-peach-soft: #ffeadf;
+
+  --color-orange: #ff8a3d;
+  --color-orange-deep: #d9600f;
+
+  --color-wa: #25d366;
+  --color-wa-deep: #128c4a;
+
+  --shadow-soft: 0 10px 30px -14px rgb(45 48 54 / 0.22);
+  --shadow-card: 0 2px 0 0 rgb(240 228 200 / 0.9), 0 14px 30px -18px rgb(45 48 54 / 0.25);
+  --shadow-pop: 0 18px 40px -16px rgb(45 48 54 / 0.32);
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-sway: sway 5s ease-in-out infinite;
+  --animate-spin-slow: spin 36s linear infinite;
+  --animate-bob: bob 3.2s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-5deg); }
+    50% { transform: rotate(5deg); }
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(0); }
+    40% { transform: translateY(-3px) rotate(-3deg); }
+    70% { transform: translateY(0) rotate(2deg); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility wrap {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 76rem;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Форма «капли» для рамок и иконок */
+@utility blob {
+  border-radius: 46% 54% 52% 48% / 52% 44% 56% 48%;
+}
+@utility blob-2 {
+  border-radius: 58% 42% 46% 54% / 44% 56% 44% 56%;
+}
+@utility blob-3 {
+  border-radius: 40% 60% 56% 44% / 58% 46% 54% 42%;
+}
+
+:root {
+  /* Принудительно светлая схема: браузер не затемняет страницу */
+  color-scheme: only light;
+  --header-h: 64px;
+}
+@media (width >= 64rem) {
+  :root {
+    --header-h: 76px;
+  }
+}
+
+@layer base {
+  html {
+    background-color: #fff9ee;
+    color: #2d3036;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    overflow-x: clip;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Якорные переходы: заголовок раздела не прячется под фиксированной шапкой */
+  [data-anchor] {
+    scroll-margin-top: var(--header-h);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    hyphens: none;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  input, button, select, textarea {
+    color: inherit;
+    background-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-teal);
+    outline-offset: 3px;
+    border-radius: 10px;
+  }
+
+  ::selection {
+    background: var(--color-sun);
+    color: var(--color-ink);
+  }
+}
+
+/* Появление блоков при прокрутке (только если JS доступен) */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--delay, 0ms);
+}
+.js .reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

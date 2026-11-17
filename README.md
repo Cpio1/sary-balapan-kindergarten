@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# «Сары балапан» — лендинг детского сада
 
-## Getting Started
-
-First, run the development server:
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · lucide-react · шрифты Nunito + Rubik (cyrillic-ext: Ә Ғ Қ Ң Ө Ұ Ү Һ І).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # http://localhost:3000
+npm run build && npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Деплой на Vercel: импортируйте репозиторий — настройки по умолчанию подходят.
+Необязательно: переменная `NEXT_PUBLIC_SITE_URL` (адрес сайта для SEO-метаданных).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Где что менять
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Что | Файл |
+|---|---|
+| Тексты на казахском / русском | `src/lib/i18n/kk.ts`, `src/lib/i18n/ru.ts` |
+| Телефон, адрес, WhatsApp, Instagram, 2GIS | `src/lib/site.ts` |
+| Официальные документы (ссылки Google Drive, Cloud Mail, PDF) | `src/lib/documents.ts` |
+| Цвета, шрифты, анимации | `src/app/globals.css` |
 
-## Learn More
+## Фотографии
 
-To learn more about Next.js, take a look at the following resources:
+- **Галерея:** положите фото (`.jpg`, `.png`, `.webp`, `.avif`) в `public/gallery/`. Список собирается автоматически
+  скриптом `scripts/media-manifest.mjs` перед `npm run dev` и `npm run build`. Порядок — по имени файла (`01.jpg`, `02.jpg`…).
+  Сетка, просмотр во весь экран, стрелки, свайп и закрытие по Esc включаются сами.
+- **Главный экран:** положите одно фото в `public/hero/` — оно заменит иллюстрацию.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+После добавления фото перезапустите `npm run dev` (или сделайте новый деплой).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Карта 2GIS
 
-## Deploy on Vercel
+Кнопка ведёт на поиск адреса «Телжан Шонанулы 54А» в 2GIS (город не указан, т.к. не подтверждён).
+Чтобы встроить интерактивную карту, укажите ссылку для iframe в `site.twoGisEmbedUrl` (`src/lib/site.ts`).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Особенности
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Основной язык — казахский, переключатель KZ / RU (выбор запоминается в браузере).
+- Тёмная тема отключена полностью (`color-scheme: only light`, вариант `dark:` не используется).
+- Якорные ссылки учитывают высоту шапки (`scroll-margin-top`).
